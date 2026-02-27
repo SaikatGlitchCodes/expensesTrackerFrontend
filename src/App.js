@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
+const BASE_URL = process.env.REACT_APP_BASE_URL;
+
 // Returns today's date as YYYY-MM-DD in local time (avoids UTC shift)
 const todayLocal = () => new Date().toLocaleDateString("en-CA");
 
@@ -11,7 +13,6 @@ function App() {
   const amountref = useRef(null);
   const descriptionref = useRef(null);
   const categoryref = useRef(null);
-  const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   useEffect(() => {
     (async () => {
@@ -45,7 +46,7 @@ function App() {
 
       console.log('responses', response.data);
       const savedDataformat = {
-        amount : response.data.amount,
+        amount: response.data.amount,
         category_name: categories.find(val => val.id === response.data.category_id).name,
         date: response.data.date,
         description: response.data.description,
