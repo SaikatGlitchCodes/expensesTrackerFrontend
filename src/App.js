@@ -1,21 +1,23 @@
 import { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
+// Returns today's date as YYYY-MM-DD in local time (avoids UTC shift)
+const todayLocal = () => new Date().toLocaleDateString("en-CA");
+
 function App() {
   const [expenses, setExpenses] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(todayLocal);
   const amountref = useRef(null);
   const descriptionref = useRef(null);
   const categoryref = useRef(null);
-
-  console.log(expenses);
-  console.log(categories);
+  const BASE_URL = process.env.REACT_APP_BASE_URL;
 
   useEffect(() => {
     (async () => {
       const [expenses, categories] = await Promise.all([
-        axios.get("http://localhost:5000/expenses"),
-        axios.get("http://localhost:5000/categories")
+        axios.get(`${BASE_URL}/expenses`),
+        axios.get(`${BASE_URL}/categories`)
       ]);
       setExpenses(expenses.data);
       setCategories(categories.data);
@@ -23,7 +25,7 @@ function App() {
   }, []);
 
   const deleteExpenses = (id) => {
-    axios.delete(`http://localhost:5000/expenses/${id}`);
+    axios.delete(`${BASE_URL}/expenses/${id}`);
     setExpenses(expenses.filter((expense) => expense.id !== id));
   }
 
@@ -31,17 +33,27 @@ function App() {
     const amount = amountref.current.value;
     const description = descriptionref.current.value;
     const category_id = categoryref.current.value;
+    const date = selectedDate;
 
-    console.log(amount, description, category_id);
     try {
-      await axios.post("http://localhost:5000/expenses", {
+      const response = await axios.post(`${BASE_URL}/expenses`, {
         amount,
         description,
-        category_id
+        category_id,
+        date
       });
-      // Refetch expenses so the table shows the new row with category_name
-      const updated = await axios.get("http://localhost:5000/expenses");
-      setExpenses(updated.data);
+
+      console.log('responses', response.data);
+      const savedDataformat = {
+        amount : response.data.amount,
+        category_name: categories.find(val => val.id === response.data.category_id).name,
+        date: response.data.date,
+        description: response.data.description,
+        id: response.data.id
+      }
+      setExpenses([...expenses, savedDataformat]);
+      // // Reset date back to today after save
+      setSelectedDate(todayLocal());
     } catch (err) {
       console.error('Unable to save expense', err);
     }
@@ -50,7 +62,7 @@ function App() {
   return (
     <div className="bg-black h-[100vh] p-5 text-white">
       <h1 className="text-3xl text-center ">Expense Tracker</h1>
-      <h1 className="text-5xl text-center py-5">{expenses.reduce((current, prev) => current + prev.amount, 0)}</h1>
+      <h1 className="text-5xl text-center py-5">₹ {expenses.reduce((acc, e) => acc + parseFloat(e.amount || 0), 0).toFixed(2)}</h1>
       <div className="flex justify-center py-12">
         <table className="w-1/2 text-center">
           <thead>
@@ -70,7 +82,7 @@ function App() {
                     <td className="py-5" >{expense.category_name}</td>
                     <td className="py-5">{expense.description}</td>
                     <td>{expense.amount}</td>
-                    <td>{new Date(expense.date).toLocaleDateString()}</td>
+                    <td>{expense.date ? expense.date.split('T')[0] : '—'}</td>
                     <td><button className="bg-red-500 px-2 py-1 rounded-md" onClick={() => deleteExpenses(expense.id)}>Delete</button></td>
                   </tr>
                 )
@@ -88,7 +100,7 @@ function App() {
               </td>
               <td><input type="text" placeholder="Description" className="text-black border-1 outline-1 rounded-md bg-white px-2" ref={descriptionref}></input></td>
               <td className="py-5"><input type="number" placeholder="Amount" className="text-black border-1 outline-1 rounded-md bg-white px-2" ref={amountref}></input> </td>
-              <td><input type="date" className="placeholder-white text-black border-1 border-white border-1 rounded-md w-full bg-white px-2" value={new Date().toISOString().split('T')[0]} disabled></input></td>
+              <td><input type="date" className="placeholder-white text-black border-1 border-white rounded-md w-full bg-white px-2" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)}></input></td>
               <td><button className="bg-green-500 px-2 py-1 rounded-md w-full text-white" onClick={addExpenses}>Add</button></td>
             </tr>
           </tbody>
